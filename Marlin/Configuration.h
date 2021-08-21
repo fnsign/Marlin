@@ -1683,7 +1683,7 @@
   //#define LEVEL_CENTER_TOO              // Move to the center after the last corner
   #define LEVEL_CORNERS_USE_PROBE
   #if ENABLED(LEVEL_CORNERS_USE_PROBE)
-    #define LEVEL_CORNERS_PROBE_TOLERANCE 0.025 // was originally 0.1
+    #define LEVEL_CORNERS_PROBE_TOLERANCE 0.05 // was originally 0.1
     #define LEVEL_CORNERS_VERIFY_RAISED   // After adjustment triggers the probe, re-probe to verify
     //#define LEVEL_CORNERS_AUDIO_FEEDBACK
   #endif
