@@ -604,9 +604,9 @@
     #define DEFAULT_Ki_LIST {   1.54,   1.54 }
     #define DEFAULT_Kd_LIST {  76.55,  76.55 }
   #else
-    #define DEFAULT_Kp  27.32 // was default 21.73
-    #define DEFAULT_Ki   2.82 // was default 1.54
-    #define DEFAULT_Kd  66.27 // was default 76.55
+    #define DEFAULT_Kp  25.69 // was default 21.73
+    #define DEFAULT_Ki   2.63 // was default 1.54
+    #define DEFAULT_Kd  62.83 // was default 76.55
   #endif
 #endif // PIDTEMP
 
@@ -644,9 +644,9 @@
   //#define PID_BED_DEBUG // Sends debug data to the serial port.
 
   // Creality Ender-3 Pro
-  #define DEFAULT_bedKp 60.97 // was default 50.71
-  #define DEFAULT_bedKi 11.70 // was default 9.88
-  #define DEFAULT_bedKd 211.83 // was default 173.43
+  #define DEFAULT_bedKp 55.22 // was default 50.71
+  #define DEFAULT_bedKi 10.76 // was default 9.88
+  #define DEFAULT_bedKd 188.91 // was default 173.43
 
   // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 #endif // PIDTEMPBED
@@ -919,7 +919,7 @@
  * Override with M92
  *                                      X, Y, Z [, I [, J [, K]]], E0 [, E1[, E2...]]
  */
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 80, 80, 400, 134.02 }
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 80, 80, 400, 135.37 } //first e-step calibration w/ MSDD was 134.02
 
 /**
  * Default Max Feed Rate (mm/s)
@@ -1171,7 +1171,7 @@
  *     |    [-]    |
  *     O-- FRONT --+
  */
-#define NOZZLE_TO_PROBE_OFFSET { -44, -6, 0 } //was prior: #define NOZZLE_TO_PROBE_OFFSET { -44, -14, 0 }, { 56, -33, 0 }
+#define NOZZLE_TO_PROBE_OFFSET { -52, -11, 0 } //was prior: #define NOZZLE_TO_PROBE_OFFSET { -44, -14, 0 }, { 56, -33, 0 }, { -44, -6, 0 }
 
 // Most probes should stay away from the edges of the bed, but
 // with NOZZLE_AS_PROBE this can be negative for a wider probing area.
@@ -1671,7 +1671,7 @@
 #define LEVEL_BED_CORNERS
 
 #if ENABLED(LEVEL_BED_CORNERS)
-  #define LEVEL_CORNERS_INSET_LFRB { 30, 30, 45, 30 } // (mm) Left, Front, Right, Back insets, was originally (30, 30, 30, 30)
+  #define LEVEL_CORNERS_INSET_LFRB { 30, 30, 53, 30 } // (mm) Left, Front, Right, Back insets, was originally (30, 30, 30, 30)
   #define LEVEL_CORNERS_HEIGHT      0.1   // (mm) Z height of nozzle at leveling points
   #define LEVEL_CORNERS_Z_HOP       4.0   // (mm) Z height of nozzle between leveling points
   //#define LEVEL_CENTER_TOO              // Move to the center after the last corner
