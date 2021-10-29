@@ -138,9 +138,6 @@ FORCE_INLINE void _draw_fan_status(const uint16_t x, const uint16_t y) {
 FORCE_INLINE void _draw_heater_status(const heater_id_t heater, const uint16_t x, const uint16_t y) {
 
   #if HAS_HOTEND
-<<<<<<< HEAD
-    #define HOTEND_STATS (COUNT_ENABLED(HAS_HOTEND, HAS_MULTI_HOTEND) + (HOTENDS > 2))
-=======
     #if HOTENDS > 2
       #define HOTEND_STATS 3
     #elif HOTENDS > 1
@@ -148,7 +145,6 @@ FORCE_INLINE void _draw_heater_status(const heater_id_t heater, const uint16_t x
     #elif HAS_HOTEND
       #define HOTEND_STATS 1
     #endif
->>>>>>> 2c8dce69e16daa08de4a62f115b06fe68c0db17d
     static celsius_t old_temp[HOTEND_STATS] = ARRAY_N_1(HOTEND_STATS, 500),
                      old_target[HOTEND_STATS] = ARRAY_N_1(HOTEND_STATS, 500);
     static bool old_on[HOTEND_STATS] = ARRAY_N_1(HOTEND_STATS, false);
