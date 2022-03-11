@@ -653,9 +653,9 @@
   //#define PID_BED_DEBUG // Sends debug data to the serial port.
 
   // Creality Ender-3 Pro
-  #define DEFAULT_bedKp 55.22 // was default 50.71
-  #define DEFAULT_bedKi 10.76 // was default 9.88
-  #define DEFAULT_bedKd 188.91 // was default 173.43
+  #define DEFAULT_bedKp 69.52 // was default 50.71
+  #define DEFAULT_bedKi 13.58 // was default 9.88
+  #define DEFAULT_bedKd 237.29 // was default 173.43
 
   // FIND YOUR OWN: "M303 E-1 C8 S90" to run autotune on the bed at 90 degreesC for 8 cycles.
 #endif // PIDTEMPBED
