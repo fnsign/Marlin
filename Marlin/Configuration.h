@@ -1888,26 +1888,26 @@
 //
 // Preheat Constants - Up to 5 are supported without changes
 //
-#define PREHEAT_1_LABEL       "PLA"
-#define PREHEAT_1_TEMP_HOTEND 205
-#define PREHEAT_1_TEMP_BED     60
+#define PREHEAT_1_LABEL       "Filament Chg."
+#define PREHEAT_1_TEMP_HOTEND 230
+#define PREHEAT_1_TEMP_BED    60
 #define PREHEAT_1_TEMP_CHAMBER 35
-#define PREHEAT_1_FAN_SPEED   255 // Value from 0 to 255
+#define PREHEAT_1_FAN_SPEED   0 // Value from 0 to 255
 
-#define PREHEAT_2_LABEL       "PETG"
-#define PREHEAT_2_TEMP_HOTEND 230
-#define PREHEAT_2_TEMP_BED     70
+#define PREHEAT_2_LABEL       "PLA"
+#define PREHEAT_2_TEMP_HOTEND 205
+#define PREHEAT_2_TEMP_BED     60
 #define PREHEAT_2_TEMP_CHAMBER 35
 #define PREHEAT_2_FAN_SPEED   255 // Value from 0 to 255
 
-#define PREHEAT_3_LABEL       "Bed Leveling"
-#define PREHEAT_3_TEMP_HOTEND 170
-#define PREHEAT_3_TEMP_BED    60
+#define PREHEAT_3_LABEL       "PETG"
+#define PREHEAT_3_TEMP_HOTEND 230
+#define PREHEAT_3_TEMP_BED     70
 #define PREHEAT_3_TEMP_CHAMBER 35
-#define PREHEAT_3_FAN_SPEED   0 // Value from 0 to 255
+#define PREHEAT_3_FAN_SPEED   255 // Value from 0 to 255
 
-#define PREHEAT_4_LABEL       "Filament Chg."
-#define PREHEAT_4_TEMP_HOTEND 230
+#define PREHEAT_4_LABEL       "Bed Leveling"
+#define PREHEAT_4_TEMP_HOTEND 170
 #define PREHEAT_4_TEMP_BED    60
 #define PREHEAT_4_TEMP_CHAMBER 35
 #define PREHEAT_4_FAN_SPEED   0 // Value from 0 to 255
