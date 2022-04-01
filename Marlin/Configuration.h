@@ -1465,15 +1465,9 @@
 #define X_BED_SIZE 235
 #define Y_BED_SIZE 235
 
-<<<<<<< HEAD
-// Travel limits (mm) after homing, corresponding to endstop positions.
-#define X_MIN_POS -5 // was default 0
-#define Y_MIN_POS -10 // was default 0
-=======
 // Travel limits (linear=mm, rotational=°) after homing, corresponding to endstop positions.
-#define X_MIN_POS 0
-#define Y_MIN_POS 0
->>>>>>> 8fb65211fc3bd55db9aac2145d327aad3d5d547d
+#define X_MIN_POS -5
+#define Y_MIN_POS -10
 #define Z_MIN_POS 0
 #define X_MAX_POS X_BED_SIZE
 #define Y_MAX_POS Y_BED_SIZE
