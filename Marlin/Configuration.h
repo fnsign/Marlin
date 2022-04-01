@@ -1852,13 +1852,8 @@
   #define Z_SAFE_HOMING_Y_POINT Y_CENTER  // Y point for Z homing
 #endif
 
-<<<<<<< HEAD
-// Homing speeds (mm/min)
-#define HOMING_FEEDRATE_MM_M { (20*60), (20*60), (4*60) }
-=======
 // Homing speeds (linear=mm/min, rotational=°/min)
-#define HOMING_FEEDRATE_MM_M { (50*60), (50*60), (4*60) }
->>>>>>> 8fb65211fc3bd55db9aac2145d327aad3d5d547d
+#define HOMING_FEEDRATE_MM_M { (20*60), (20*60), (4*60) }
 
 // Validate that endstops are triggered on homing moves
 #define VALIDATE_HOMING_ENDSTOPS
