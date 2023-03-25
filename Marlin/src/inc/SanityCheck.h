@@ -658,6 +658,8 @@
   #error "EXTRA_LIN_ADVANCE_K is now ADVANCE_K_EXTRA."
 #elif defined(POLAR_SEGMENTS_PER_SECOND) || defined(DELTA_SEGMENTS_PER_SECOND)  || defined(SCARA_SEGMENTS_PER_SECOND) || defined(TPARA_SEGMENTS_PER_SECOND)
   #error "(POLAR|DELTA|SCARA|TPARA)_SEGMENTS_PER_SECOND is now DEFAULT_SEGMENTS_PER_SECOND."
+#elif defined(TMC_SW_MOSI) || defined(TMC_SW_MISO) || defined(TMC_SW_SCK)
+  #error "TMC_SW_(MOSI|MISO|SCK) is now TMC_SPI_(MOSI|MISO|SCK)."
 #elif ANY(DGUS_LCD_UI_ORIGIN, DGUS_LCD_UI_FYSETC, DGUS_LCD_UI_HIPRECY, DGUS_LCD_UI_MKS, DGUS_LCD_UI_RELOADED) && !defined(DGUS_LCD_UI)
   #error "DGUS_LCD_UI_[TYPE] is now set using DGUS_LCD_UI TYPE."
 #elif defined(DELTA_PRINTABLE_RADIUS)
@@ -2663,6 +2665,10 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE, "Movement bounds (X_MIN_POS, X_MAX_POS
     #endif // HOTENDS > 3
   #endif // HOTENDS > 2
 #endif // HAS_MULTI_HOTEND
+
+#if DO_TOOLCHANGE_FOR_PROBING && PROBING_TOOL >= EXTRUDERS
+  #error "PROBING_TOOL must be a valid tool index."
+#endif
 
 /**
  * Pins must be set for temp sensors, with some other feature requirements.
