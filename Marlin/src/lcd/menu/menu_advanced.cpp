@@ -104,6 +104,10 @@ void menu_backlash();
 #endif
 
 #if DISABLED(NO_VOLUMETRICS) || ENABLED(ADVANCED_PAUSE_FEATURE)
+  #define HAS_ADV_FILAMENT_MENU 1
+#endif
+
+#if HAS_ADV_FILAMENT_MENU
   //
   // Advanced Settings > Filament
   //
@@ -138,7 +142,7 @@ void menu_backlash();
             EDIT_ITEM_FAST_N(float43, e, MSG_FILAMENT_DIAM_E, &planner.filament_size[e], 1.5f, 3.25f, planner.calculate_volumetric_multipliers);
         #endif
       }
-    #endif
+    #endif // !NO_VOLUMETRICS
 
     #if ENABLED(CONFIGURE_FILAMENT_CHANGE)
       constexpr float extrude_maxlength = TERN(PREVENT_LENGTHY_EXTRUDE, EXTRUDE_MAXLENGTH, 999);
@@ -169,7 +173,7 @@ void menu_backlash();
     END_MENU();
   }
 
-#endif // !NO_VOLUMETRICS || ADVANCED_PAUSE_FEATURE
+#endif // HAS_ADV_FILAMENT_MENU
 
 //
 // Advanced Settings > Temperature helpers
@@ -729,14 +733,14 @@ void menu_advanced_settings() {
     SUBMENU(MSG_TEMPERATURE, menu_advanced_temperature);
   #endif
 
-  #if DISABLED(NO_VOLUMETRICS) || ENABLED(ADVANCED_PAUSE_FEATURE)
+  #if HAS_ADV_FILAMENT_MENU
     SUBMENU(MSG_FILAMENT, menu_advanced_filament);
   #elif ENABLED(LIN_ADVANCE)
     #if DISTINCT_E < 2
       EDIT_ITEM(float42_52, MSG_ADVANCE_K, &planner.extruder_advance_K[0], 0, 10);
     #else
       EXTRUDER_LOOP()
-        EDIT_ITEM_N(float42_52, n, MSG_ADVANCE_K_E, &planner.extruder_advance_K[e], 0, 10);
+        EDIT_ITEM_N(float42_52, e, MSG_ADVANCE_K_E, &planner.extruder_advance_K[e], 0, 10);
     #endif
   #endif
 
