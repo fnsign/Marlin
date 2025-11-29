@@ -824,41 +824,34 @@ void Temperature::factory_reset() {
     raw_pid_t tune_pid = { 0, 0, 0 };
     celsius_float_t maxT = 0, minT = 10000;
 
-    const bool isbed = (heater_id == H_BED),
-           ischamber = (heater_id == H_CHAMBER);
+    const bool isbed = TERN0(PIDTEMPBED,     heater_id == H_BED),
+           ischamber = TERN0(PIDTEMPCHAMBER, heater_id == H_CHAMBER);
 
-    #if ENABLED(PIDTEMPCHAMBER)
-      #define C_TERN(T,A,B) ((T) ? (A) : (B))
-    #else
-      #define C_TERN(T,A,B) (B)
-    #endif
-    #if ENABLED(PIDTEMPBED)
-      #define B_TERN(T,A,B) ((T) ? (A) : (B))
-    #else
-      #define B_TERN(T,A,B) (B)
-    #endif
-    #define GHV(C,B,H) C_TERN(ischamber, C, B_TERN(isbed, B, H))
-    #define SHV(V) C_TERN(ischamber, temp_chamber.soft_pwm_amount = V, B_TERN(isbed, temp_bed.soft_pwm_amount = V, temp_hotend[heater_id].soft_pwm_amount = V))
-    #define ONHEATINGSTART() C_TERN(ischamber, printerEventLEDs.onChamberHeatingStart(), B_TERN(isbed, printerEventLEDs.onBedHeatingStart(), printerEventLEDs.onHotendHeatingStart()))
-    #define ONHEATING(S,C,T) C_TERN(ischamber, printerEventLEDs.onChamberHeating(S,C,T), B_TERN(isbed, printerEventLEDs.onBedHeating(S,C,T), printerEventLEDs.onHotendHeating(S,C,T)))
+    // BED TEST ; BED VALUE ; HOTEND VALUE
+    #define T_BH(T,B,H) TERN(PIDTEMPBED, ((T) ? (B) : (H)), (H))
+    // CHAMBER TEST ; CHAMBER VALUE ; T_BH(...)
+    #define T_CBH(T,C,BH) TERN(PIDTEMPCHAMBER, ((T) ? (C) : (BH)), (BH))
+    // CHAMBER VALUE ; BED VALUE ; HOTEND VALUE
+    #define PER_CBH(C,B,H) T_CBH(ischamber, C, T_BH(isbed, B, H))
+
+    // Set a field value in the pertinent Temp Monitor
+    #define SET_CBH(F,V) PER_CBH(temp_chamber.F = V, temp_bed.F = V, temp_hotend[heater_id].F = V)
+    #define ONHEATINGSTART() PER_CBH(printerEventLEDs.onChamberHeatingStart(), printerEventLEDs.onBedHeatingStart(), printerEventLEDs.onHotendHeatingStart())
+    #define ONHEATING(S,C,T) PER_CBH(printerEventLEDs.onChamberHeating(S,C,T), printerEventLEDs.onBedHeating(S,C,T), printerEventLEDs.onHotendHeating(S,C,T))
 
     #define WATCH_PID DISABLED(NO_WATCH_PID_TUNING) && (ALL(WATCH_CHAMBER, PIDTEMPCHAMBER) || ALL(WATCH_BED, PIDTEMPBED) || ALL(WATCH_HOTENDS, PIDTEMP))
-
     #if WATCH_PID
-      #if ALL(THERMAL_PROTECTION_CHAMBER, PIDTEMPCHAMBER)
-        #define C_GTV(T,A,B) ((T) ? (A) : (B))
-      #else
-        #define C_GTV(T,A,B) (B)
-      #endif
-      #if ALL(THERMAL_PROTECTION_BED, PIDTEMPBED)
-        #define B_GTV(T,A,B) ((T) ? (A) : (B))
-      #else
-        #define B_GTV(T,A,B) (B)
-      #endif
-      #define GTV(C,B,H) C_GTV(ischamber, C, B_GTV(isbed, B, H))
-      const uint16_t watch_temp_period = GTV(WATCH_CHAMBER_TEMP_PERIOD, WATCH_BED_TEMP_PERIOD, WATCH_TEMP_PERIOD);
-      const uint8_t watch_temp_increase = GTV(WATCH_CHAMBER_TEMP_INCREASE, WATCH_BED_TEMP_INCREASE, WATCH_TEMP_INCREASE);
-      const celsius_float_t watch_temp_target = celsius_float_t(target - (watch_temp_increase + GTV(TEMP_CHAMBER_HYSTERESIS, TEMP_BED_HYSTERESIS, TEMP_HYSTERESIS) + 1));
+      // BED TEST ; BED VALUE ; HOTEND VALUE
+      #define W_BH(T,B,H) TERN(THERMAL_PROTECTION_BED, T_BH(T,B,H), (H))
+      // CHAMBER TEST ; CHAMBER VALUE ; W_BH(...)
+      #define W_CBH(T,C,BH) TERN(THERMAL_PROTECTION_CHAMBER, T_CBH(T,C,BH), (BH))
+      // CHAMBER VALUE ; BED VALUE ; HOTEND VALUE
+      #define PER_WATCH_CBH(C,B,H) W_CBH(ischamber, C, W_BH(isbed, B, H))
+
+      const uint16_t watch_temp_period = PER_WATCH_CBH(WATCH_CHAMBER_TEMP_PERIOD, WATCH_BED_TEMP_PERIOD, WATCH_TEMP_PERIOD);
+      const uint8_t watch_temp_increase = PER_WATCH_CBH(WATCH_CHAMBER_TEMP_INCREASE, WATCH_BED_TEMP_INCREASE, WATCH_TEMP_INCREASE);
+      const celsius_float_t watch_hysteresis = PER_WATCH_CBH(TEMP_CHAMBER_HYSTERESIS, TEMP_BED_HYSTERESIS, TEMP_HYSTERESIS),
+                            watch_temp_target = celsius_float_t(target - (watch_temp_increase + watch_hysteresis + 1));
       millis_t temp_change_ms = next_temp_ms + SEC_TO_MS(watch_temp_period);
       celsius_float_t next_watch_temp = 0.0;
       bool heated = false;
@@ -866,9 +859,9 @@ void Temperature::factory_reset() {
 
     TERN_(HAS_FAN_LOGIC, fan_update_ms = next_temp_ms + fan_update_interval_ms);
 
-    TERN_(EXTENSIBLE_UI, ExtUI::onPIDTuning(ischamber ? ExtUI::pidresult_t::PID_CHAMBER_STARTED : isbed ? ExtUI::pidresult_t::PID_BED_STARTED : ExtUI::pidresult_t::PID_STARTED));
+    TERN_(EXTENSIBLE_UI, ExtUI::onPIDTuning(PER_CBH(ExtUI::pidresult_t::PID_CHAMBER_STARTED, ExtUI::pidresult_t::PID_BED_STARTED, ExtUI::pidresult_t::PID_STARTED)));
 
-    if (target > GHV(CHAMBER_MAX_TARGET, BED_MAX_TARGET, hotend_max_target(heater_id))) {
+    if (target > PER_CBH(CHAMBER_MAX_TARGET, BED_MAX_TARGET, hotend_max_target(heater_id))) {
       SERIAL_ECHOPGM(STR_PID_AUTOTUNE); SERIAL_ECHOLNPGM(STR_PID_TEMP_TOO_HIGH);
       TERN_(EXTENSIBLE_UI, ExtUI::onPIDTuning(ExtUI::pidresult_t::PID_TEMP_TOO_HIGH));
       TERN_(HOST_PROMPT_SUPPORT, hostui.notify(GET_TEXT_F(MSG_PID_TEMP_TOO_HIGH)));
@@ -880,11 +873,11 @@ void Temperature::factory_reset() {
     disable_all_heaters();
     TERN_(AUTO_POWER_CONTROL, powerManager.power_on());
 
-    long bias = GHV(MAX_CHAMBER_POWER, MAX_BED_POWER, PID_MAX) >> 1, d = bias;
-    SHV(bias);
+    long bias = PER_CBH(MAX_CHAMBER_POWER, MAX_BED_POWER, PID_MAX) >> 1, d = bias;
+    SET_CBH(soft_pwm_amount, bias);
 
     #if ENABLED(PRINTER_EVENT_LEDS)
-      const celsius_float_t start_temp = GHV(degChamber(), degBed(), degHotend(heater_id));
+      const celsius_float_t start_temp = PER_CBH(degChamber(), degBed(), degHotend(heater_id));
       const LED1Color_t oldcolor = ONHEATINGSTART();
     #endif
 
@@ -905,7 +898,7 @@ void Temperature::factory_reset() {
       if (temp_ready) {
 
         // Get the current temperature and constrain it
-        current_temp = GHV(degChamber(), degBed(), degHotend(heater_id));
+        current_temp = PER_CBH(degChamber(), degBed(), degHotend(heater_id));
         NOLESS(maxT, current_temp);
         NOMORE(minT, current_temp);
 
@@ -915,7 +908,7 @@ void Temperature::factory_reset() {
 
         if (heating && current_temp > target && ELAPSED(ms, t2, 5000UL)) {
           heating = false;
-          SHV((bias - d) >> 1);
+          SET_CBH(soft_pwm_amount, (bias - d) >> 1);
           t1 = ms;
           t_high = t1 - t2;
           maxT = target;
@@ -926,7 +919,7 @@ void Temperature::factory_reset() {
           t2 = ms;
           t_low = t2 - t1;
           if (cycles > 0) {
-            const long max_pow = GHV(MAX_CHAMBER_POWER, MAX_BED_POWER, PID_MAX);
+            const long max_pow = PER_CBH(MAX_CHAMBER_POWER, MAX_BED_POWER, PID_MAX);
             bias += (d * (t_high - t_low)) / (t_low + t_high);
             LIMIT(bias, 20, max_pow - 20);
             d = (bias > max_pow >> 1) ? max_pow - 1 - bias : bias;
@@ -950,7 +943,7 @@ void Temperature::factory_reset() {
               SERIAL_ECHOLNPGM(STR_KP, tune_pid.p, STR_KI, tune_pid.i, STR_KD, tune_pid.d);
             }
           }
-          SHV((bias + d) >> 1);
+          SET_CBH(soft_pwm_amount, (bias + d) >> 1);
           TERN_(HAS_STATUS_MESSAGE, ui.status_printf(0, F(S_FMT " %i/%i"), GET_TEXT(MSG_PID_CYCLE), cycles, ncycles));
           cycles++;
           minT = target;
@@ -1016,7 +1009,7 @@ void Temperature::factory_reset() {
         TERN_(HOST_PROMPT_SUPPORT, hostui.notify(GET_TEXT_F(MSG_PID_AUTOTUNE_DONE)));
 
         #if ANY(PIDTEMPBED, PIDTEMPCHAMBER)
-          FSTR_P const estring = GHV(F("chamber"), F("bed"), FPSTR(NUL_STR));
+          FSTR_P const estring = PER_CBH(F("chamber"), F("bed"), FPSTR(NUL_STR));
           say_default_(); SERIAL_ECHOLN(estring, F("Kp "), tune_pid.p);
           say_default_(); SERIAL_ECHOLN(estring, F("Ki "), tune_pid.i);
           say_default_(); SERIAL_ECHOLN(estring, F("Kd "), tune_pid.d);
@@ -1052,7 +1045,7 @@ void Temperature::factory_reset() {
 
         // Use the result? (As with "M303 U1")
         if (set_result)
-          GHV(_set_chamber_pid(tune_pid), _set_bed_pid(tune_pid), _set_hotend_pid(heater_id, tune_pid));
+          PER_CBH(_set_chamber_pid(tune_pid), _set_bed_pid(tune_pid), _set_hotend_pid(heater_id, tune_pid));
 
         goto EXIT_M303;
       }
@@ -1136,9 +1129,8 @@ void Temperature::factory_reset() {
     wait_for_heatup = false;
 
     #if ENABLED(MPC_AUTOTUNE_DEBUG)
-      SERIAL_ECHOLNPGM("MPC_autotuner::measure_ambient_temp() Completed");
-      SERIAL_ECHOLNPGM("=====");
-      SERIAL_ECHOLNPGM("ambient_temp ", get_ambient_temp());
+      SERIAL_ECHOLNPGM("MPC_autotuner::measure_ambient_temp() Completed\n=====\n"
+                       "ambient_temp ", get_ambient_temp());
     #endif
 
     return SUCCESS;
@@ -1223,11 +1215,8 @@ void Temperature::factory_reset() {
     #if ENABLED(MPC_AUTOTUNE_DEBUG)
       SERIAL_ECHOLNPGM("MPC_autotuner::measure_heatup() Completed");
       SERIAL_ECHOLNPGM("=====");
-      SERIAL_ECHOLNPGM("t1_time ", t1_time);
-      SERIAL_ECHOLNPGM("sample_count ", sample_count);
-      SERIAL_ECHOLNPGM("sample_distance ", sample_distance);
-      for (uint8_t i = 0; i < sample_count; i++)
-        SERIAL_ECHOLNPGM("sample ", i, " : ", temp_samples[i]);
+      SERIAL_ECHOLNPGM("t1_time ", t1_time, " sample_count ", sample_count, " sample_distance ", sample_distance);
+      for (uint8_t i = 0; i < sample_count; i++) SERIAL_ECHOLNPGM("sample ", i, " : ", temp_samples[i]);
       SERIAL_ECHOLNPGM("t1 ", get_sample_1_temp(), " t2 ", get_sample_2_temp(), " t3 ", get_sample_3_temp());
     #endif
 
@@ -1390,9 +1379,9 @@ void Temperature::factory_reset() {
 
     if (tuning_type == FORCE_DIFFERENTIAL) {
       #if ENABLED(MPC_AUTOTUNE_DEBUG)
-        SERIAL_ECHOLNPGM("rate_fastest ", tuner.get_rate_fastest());
-        SERIAL_ECHOLNPGM("time_fastest ", tuner.get_time_fastest());
-        SERIAL_ECHOLNPGM("temp_fastest ", tuner.get_temp_fastest());
+        SERIAL_ECHOLNPGM("Fastest rate=", tuner.get_rate_fastest(),
+                                " time=", tuner.get_time_fastest(),
+                                 "temp=", tuner.get_temp_fastest());
       #endif
       // Differential tuning
       mpc.block_heat_capacity = mpc.heater_power / tuner.get_rate_fastest();
@@ -1435,9 +1424,9 @@ void Temperature::factory_reset() {
       // Check again: If analytic tuning fails, fall back to differential tuning
       if (tuning_type == AUTO && (mpc.sensor_responsiveness <= 0 || mpc.block_heat_capacity <= 0)) {
         #if ENABLED(MPC_AUTOTUNE_DEBUG)
-          SERIAL_ECHOLNPGM("rate_fastest ", tuner.get_rate_fastest());
-          SERIAL_ECHOLNPGM("time_fastest ", tuner.get_time_fastest());
-          SERIAL_ECHOLNPGM("temp_fastest ", tuner.get_temp_fastest());
+        SERIAL_ECHOLNPGM("Fastest rate=", tuner.get_rate_fastest(),
+                                " time=", tuner.get_time_fastest(),
+                                 "temp=", tuner.get_temp_fastest());
         #endif
         tuning_type = FORCE_DIFFERENTIAL;
         mpc.block_heat_capacity = mpc.heater_power / tuner.get_rate_fastest();
@@ -3131,27 +3120,14 @@ void Temperature::init() {
       OUT_WRITE(HEATER_0_PIN, ENABLED(HEATER_0_INVERTING));
     #endif
   #endif
-  #if HAS_HEATER_1
-    OUT_WRITE(HEATER_1_PIN, ENABLED(HEATER_1_INVERTING));
-  #endif
-  #if HAS_HEATER_2
-    OUT_WRITE(HEATER_2_PIN, ENABLED(HEATER_2_INVERTING));
-  #endif
-  #if HAS_HEATER_3
-    OUT_WRITE(HEATER_3_PIN, ENABLED(HEATER_3_INVERTING));
-  #endif
-  #if HAS_HEATER_4
-    OUT_WRITE(HEATER_4_PIN, ENABLED(HEATER_4_INVERTING));
-  #endif
-  #if HAS_HEATER_5
-    OUT_WRITE(HEATER_5_PIN, ENABLED(HEATER_5_INVERTING));
-  #endif
-  #if HAS_HEATER_6
-    OUT_WRITE(HEATER_6_PIN, ENABLED(HEATER_6_INVERTING));
-  #endif
-  #if HAS_HEATER_7
-    OUT_WRITE(HEATER_7_PIN, ENABLED(HEATER_7_INVERTING));
-  #endif
+
+  TERF(HAS_HEATER_1, OUT_WRITE)(HEATER_1_PIN, ENABLED(HEATER_1_INVERTING));
+  TERF(HAS_HEATER_2, OUT_WRITE)(HEATER_2_PIN, ENABLED(HEATER_2_INVERTING));
+  TERF(HAS_HEATER_3, OUT_WRITE)(HEATER_3_PIN, ENABLED(HEATER_3_INVERTING));
+  TERF(HAS_HEATER_4, OUT_WRITE)(HEATER_4_PIN, ENABLED(HEATER_4_INVERTING));
+  TERF(HAS_HEATER_5, OUT_WRITE)(HEATER_5_PIN, ENABLED(HEATER_5_INVERTING));
+  TERF(HAS_HEATER_6, OUT_WRITE)(HEATER_6_PIN, ENABLED(HEATER_6_INVERTING));
+  TERF(HAS_HEATER_7, OUT_WRITE)(HEATER_7_PIN, ENABLED(HEATER_7_INVERTING));
 
   #if HAS_HEATED_BED
     #if ENABLED(PELTIER_BED)
@@ -3173,33 +3149,15 @@ void Temperature::init() {
     OUT_WRITE(COOLER_PIN, ENABLED(COOLER_INVERTING));
   #endif
 
-  #if HAS_FAN0
-    INIT_FAN_PIN(FAN0_PIN);
-  #endif
-  #if HAS_FAN1
-    INIT_FAN_PIN(FAN1_PIN);
-  #endif
-  #if HAS_FAN2
-    INIT_FAN_PIN(FAN2_PIN);
-  #endif
-  #if HAS_FAN3
-    INIT_FAN_PIN(FAN3_PIN);
-  #endif
-  #if HAS_FAN4
-    INIT_FAN_PIN(FAN4_PIN);
-  #endif
-  #if HAS_FAN5
-    INIT_FAN_PIN(FAN5_PIN);
-  #endif
-  #if HAS_FAN6
-    INIT_FAN_PIN(FAN6_PIN);
-  #endif
-  #if HAS_FAN7
-    INIT_FAN_PIN(FAN7_PIN);
-  #endif
-  #if ENABLED(USE_CONTROLLER_FAN)
-    INIT_FAN_PIN(CONTROLLER_FAN_PIN);
-  #endif
+  TERF(HAS_FAN0, INIT_FAN_PIN)(FAN0_PIN);
+  TERF(HAS_FAN1, INIT_FAN_PIN)(FAN1_PIN);
+  TERF(HAS_FAN2, INIT_FAN_PIN)(FAN2_PIN);
+  TERF(HAS_FAN3, INIT_FAN_PIN)(FAN3_PIN);
+  TERF(HAS_FAN4, INIT_FAN_PIN)(FAN4_PIN);
+  TERF(HAS_FAN5, INIT_FAN_PIN)(FAN5_PIN);
+  TERF(HAS_FAN6, INIT_FAN_PIN)(FAN6_PIN);
+  TERF(HAS_FAN7, INIT_FAN_PIN)(FAN7_PIN);
+  TERF(USE_CONTROLLER_FAN, INIT_FAN_PIN)(CONTROLLER_FAN_PIN);
 
   TERN_(HAS_MAXTC_SW_SPI, max_tc_spi.init());
 
@@ -3229,9 +3187,7 @@ void Temperature::init() {
   TERN_(POWER_MONITOR_CURRENT,  hal.adc_enable(POWER_MONITOR_CURRENT_PIN));
   TERN_(POWER_MONITOR_VOLTAGE,  hal.adc_enable(POWER_MONITOR_VOLTAGE_PIN));
 
-  #if HAS_JOY_ADC_EN
-    SET_INPUT_PULLUP(JOY_EN_PIN);
-  #endif
+  TERF(HAS_JOY_ADC_EN, SET_INPUT_PULLUP)(JOY_EN_PIN);
 
   HAL_timer_start(MF_TIMER_TEMP, TEMP_TIMER_FREQUENCY);
   ENABLE_TEMPERATURE_INTERRUPT();
@@ -4140,18 +4096,12 @@ void Temperature::isr() {
 
       #if HAS_HEATED_BED
         _PWM_MOD(BED, soft_pwm_bed, temp_bed);
-        #if ENABLED(PELTIER_BED)
-          WRITE_PELTIER_DIR(temp_bed.peltier_dir_heating);
-        #endif
+        TERF(PELTIER_BED, WRITE_PELTIER_DIR)(temp_bed.peltier_dir_heating);
       #endif
 
-      #if HAS_HEATED_CHAMBER
-        _PWM_MOD(CHAMBER, soft_pwm_chamber, temp_chamber);
-      #endif
+      TERF(HAS_HEATED_CHAMBER, _PWM_MOD)(CHAMBER, soft_pwm_chamber, temp_chamber);
 
-      #if HAS_COOLER
-        _PWM_MOD(COOLER, soft_pwm_cooler, temp_cooler);
-      #endif
+      TERF(HAS_COOLER, _PWM_MOD)(COOLER, soft_pwm_cooler, temp_cooler);
 
       #if ENABLED(FAN_SOFT_PWM)
 
@@ -4165,30 +4115,14 @@ void Temperature::isr() {
           WRITE_FAN(N, spcf > pwm_mask ? HIGH : LOW);               \
         }while(0)
 
-        #if HAS_FAN0
-          _FAN_PWM(0);
-        #endif
-        #if HAS_FAN1
-          _FAN_PWM(1);
-        #endif
-        #if HAS_FAN2
-          _FAN_PWM(2);
-        #endif
-        #if HAS_FAN3
-          _FAN_PWM(3);
-        #endif
-        #if HAS_FAN4
-          _FAN_PWM(4);
-        #endif
-        #if HAS_FAN5
-          _FAN_PWM(5);
-        #endif
-        #if HAS_FAN6
-          _FAN_PWM(6);
-        #endif
-        #if HAS_FAN7
-          _FAN_PWM(7);
-        #endif
+        TERF(HAS_FAN0, _FAN_PWM)(0);
+        TERF(HAS_FAN1, _FAN_PWM)(1);
+        TERF(HAS_FAN2, _FAN_PWM)(2);
+        TERF(HAS_FAN3, _FAN_PWM)(3);
+        TERF(HAS_FAN4, _FAN_PWM)(4);
+        TERF(HAS_FAN5, _FAN_PWM)(5);
+        TERF(HAS_FAN6, _FAN_PWM)(6);
+        TERF(HAS_FAN7, _FAN_PWM)(7);
       #endif
     }
     else {
@@ -4198,17 +4132,9 @@ void Temperature::isr() {
         REPEAT(HOTENDS, _PWM_LOW_E);
       #endif
 
-      #if HAS_HEATED_BED
-        _PWM_LOW(BED, soft_pwm_bed);
-      #endif
-
-      #if HAS_HEATED_CHAMBER
-        _PWM_LOW(CHAMBER, soft_pwm_chamber);
-      #endif
-
-      #if HAS_COOLER
-        _PWM_LOW(COOLER, soft_pwm_cooler);
-      #endif
+      TERF(HAS_HEATED_BED,     _PWM_LOW)(BED, soft_pwm_bed);
+      TERF(HAS_HEATED_CHAMBER, _PWM_LOW)(CHAMBER, soft_pwm_chamber);
+      TERF(HAS_COOLER,         _PWM_LOW)(COOLER, soft_pwm_cooler);
 
       #if ENABLED(FAN_SOFT_PWM)
         #if HAS_FAN0
@@ -4271,17 +4197,9 @@ void Temperature::isr() {
         REPEAT(HOTENDS, _SLOW_PWM_E);
       #endif
 
-      #if HAS_HEATED_BED
-        _SLOW_PWM(BED, soft_pwm_bed, temp_bed);
-      #endif
-
-      #if HAS_HEATED_CHAMBER
-        _SLOW_PWM(CHAMBER, soft_pwm_chamber, temp_chamber);
-      #endif
-
-      #if HAS_COOLER
-        _SLOW_PWM(COOLER, soft_pwm_cooler, temp_cooler);
-      #endif
+      TERF(HAS_HEATED_BED,     _SLOW_PWM)(BED, soft_pwm_bed, temp_bed);
+      TERF(HAS_HEATED_CHAMBER, _SLOW_PWM)(CHAMBER, soft_pwm_chamber, temp_chamber);
+      TERF(HAS_COOLER,         _SLOW_PWM)(COOLER, soft_pwm_cooler, temp_cooler);
 
     } // slow_pwm_count == 0
 
@@ -4290,17 +4208,9 @@ void Temperature::isr() {
       REPEAT(HOTENDS, _PWM_OFF_E);
     #endif
 
-    #if HAS_HEATED_BED
-      _PWM_OFF(BED, soft_pwm_bed);
-    #endif
-
-    #if HAS_HEATED_CHAMBER
-      _PWM_OFF(CHAMBER, soft_pwm_chamber);
-    #endif
-
-    #if HAS_COOLER
-      _PWM_OFF(COOLER, soft_pwm_cooler, temp_cooler);
-    #endif
+    TERF(HAS_HEATED_BED,     _PWM_OFF)(BED, soft_pwm_bed);
+    TERF(HAS_HEATED_CHAMBER, _PWM_OFF)(CHAMBER, soft_pwm_chamber);
+    TERF(HAS_COOLER,         _PWM_OFF)(COOLER, soft_pwm_cooler, temp_cooler);
 
     #if ENABLED(FAN_SOFT_PWM)
       if (pwm_count_tmp >= 127) {
@@ -4309,30 +4219,14 @@ void Temperature::isr() {
           soft_pwm_count_fan[N] = soft_pwm_amount_fan[N] >> 1;  \
           WRITE_FAN(N, soft_pwm_count_fan[N] > 0 ? HIGH : LOW); \
         }while(0)
-        #if HAS_FAN0
-          _PWM_FAN(0);
-        #endif
-        #if HAS_FAN1
-          _PWM_FAN(1);
-        #endif
-        #if HAS_FAN2
-          _PWM_FAN(2);
-        #endif
-        #if HAS_FAN3
-          _FAN_PWM(3);
-        #endif
-        #if HAS_FAN4
-          _FAN_PWM(4);
-        #endif
-        #if HAS_FAN5
-          _FAN_PWM(5);
-        #endif
-        #if HAS_FAN6
-          _FAN_PWM(6);
-        #endif
-        #if HAS_FAN7
-          _FAN_PWM(7);
-        #endif
+        TERF(HAS_FAN0, _PWM_FAN)(0);
+        TERF(HAS_FAN1, _PWM_FAN)(1);
+        TERF(HAS_FAN2, _PWM_FAN)(2);
+        TERF(HAS_FAN3, _FAN_PWM)(3);
+        TERF(HAS_FAN4, _FAN_PWM)(4);
+        TERF(HAS_FAN5, _FAN_PWM)(5);
+        TERF(HAS_FAN6, _FAN_PWM)(6);
+        TERF(HAS_FAN7, _FAN_PWM)(7);
       }
       #if HAS_FAN0
         if (soft_pwm_count_fan[0] <= pwm_count_tmp) WRITE_FAN(0, LOW);
