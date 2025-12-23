@@ -9,9 +9,8 @@ UNIT_TEST_CONFIG ?= default
 ifeq ($(OS),Windows_NT)
 	# Windows: use `where` – fall back through the three common names
 	PYTHON := $(shell which python 2>nul || which python3 2>nul || which py 2>nul)
-	# Windows: Use cmd tools to find pins files
-	PINS_RAW := $(shell cmd //c "dir /s /b Marlin\src\pins\*.h 2>nul | findstr /r ".*Marlin\\\\src\\\\pins\\\\.*\\\\pins_.*\.h"")
-	PINS := $(subst \,/,$(PINS_RAW))
+	# Windows: Use Python script to find pins files
+	PINS := $(shell $(PYTHON) $(MAKESCRIPTS_DIR)/find.py Marlin/src/pins -mindepth 2 -name 'pins_*.h')
 else
 	# POSIX: use `command -v` – prefer python3 over python
 	PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null)
@@ -90,7 +89,7 @@ tests-all-local:
 	@$(PYTHON) -c "import yaml" 2>/dev/null || (echo 'pyyaml module is not installed. Install it with "$(PYTHON) -m pip install pyyaml"' && exit 1)
 	export PATH="./buildroot/bin/:./buildroot/tests/:${PATH}" \
 	  && export VERBOSE_PLATFORMIO=$(VERBOSE_PLATFORMIO) \
-	  && for TEST_TARGET in $$($(PYTHON) $(SCRIPTS_DIR)/get_test_targets.py) ; do \
+	  && for TEST_TARGET in $$($(PYTHON) $(MAKESCRIPTS_DIR)/get_test_targets.py) ; do \
 	    if [ "$$TEST_TARGET" = "linux_native" ] && [ "$$(uname)" = "Darwin" ]; then \
 	      echo "Skipping tests for $$TEST_TARGET on macOS" ; \
 	      continue ; \
@@ -174,4 +173,4 @@ BOARDS_FILE := Marlin/src/core/boards.h
 
 validate-boards:
 	@echo "Validating boards.h file"
-	@$(PYTHON) $(SCRIPTS_DIR)/validate_boards.py $(BOARDS_FILE) || (echo "\nError: boards.h file is not valid. Please check and correct it.\n" && exit 1)
+	@$(PYTHON) $(MAKESCRIPTS_DIR)/validate_boards.py $(BOARDS_FILE) || (echo "\nError: boards.h file is not valid. Please check and correct it.\n" && exit 1)
