@@ -95,13 +95,13 @@ int16_t CardReader::nrItems = -1;
 
 #if ENABLED(SDCARD_SORT_ALPHA)
 
-  int16_t CardReader::sort_count;
   #if ENABLED(SDSORT_GCODE)
     SortFlag CardReader::sort_alpha;
     int8_t CardReader::sort_folders;
     //bool CardReader::sort_reverse;
   #endif
 
+  int16_t CardReader::sort_count;
   uint8_t *CardReader::sort_order;
 
   #if ENABLED(SDSORT_USES_RAM)
@@ -159,13 +159,15 @@ CardReader::CardReader() {
       static uint8_t sort_order_static[SDSORT_LIMIT];
       sort_order = sort_order_static;
     #endif
-    #if ENABLED(SDSORT_CACHE_NAMES) && DISABLED(SDSORT_DYNAMIC_RAM)
-      static char sortshort_static[SDSORT_LIMIT][FILENAME_LENGTH];
-      sortshort = sortshort_static;
-    #endif
-    #if ENABLED(SDSORT_CACHE_NAMES) && !ALL(SDSORT_DYNAMIC_RAM, SDSORT_USES_STACK)
-      static char sortnames_static[SDSORT_LIMIT][SORTED_LONGNAME_STORAGE];
-      sortnames = sortnames_static;
+    #if ENABLED(SDSORT_CACHE_NAMES)
+      #if DISABLED(SDSORT_DYNAMIC_RAM)
+        static char sortshort_static[SDSORT_LIMIT][FILENAME_LENGTH];
+        sortshort = sortshort_static;
+      #endif
+      #if !ALL(SDSORT_DYNAMIC_RAM, SDSORT_USES_STACK)
+        static char sortnames_static[SDSORT_LIMIT][SORTED_LONGNAME_STORAGE];
+        sortnames = sortnames_static;
+      #endif
     #endif
 
     sort_count = 0;
@@ -1344,7 +1346,7 @@ void CardReader::cdroot() {
         #define SET_SORTSHORT(I) NOOP
       #endif
     #endif
-  #endif
+  #endif // SDSORT_USES_RAM
 
   /**
    * Read all the files and produce a sort key
@@ -1600,7 +1602,7 @@ void CardReader::cdroot() {
       }
       else {
         sort_order[0] = uint8_t(0);
-        #if ALL(SDSORT_USES_RAM, SDSORT_CACHE_NAMES)
+        #if ENABLED(SDSORT_CACHE_NAMES)
           #if ENABLED(SDSORT_DYNAMIC_RAM)
             sortnames = new char[1][SORTED_LONGNAME_STORAGE];
             sortshort = new char[1][SORTED_SHORTNAME_STORAGE];

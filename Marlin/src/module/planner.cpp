@@ -786,7 +786,7 @@ block_t* Planner::get_future_block(const uint8_t offset) {
  * Calculate trapezoid (or or update FTM) motion parameters for a block.
  *
  * `entry_speed` is an optional override in mm/s.
- * A value of `0` is a sentinel meaning “do not override the block’s
+ * A value of `0` is a sentinel meaning “do not override the block's
  * existing entry speed / initial_rate.”
  *
  * This is relied upon by recalculate_trapezoids(), which intentionally
