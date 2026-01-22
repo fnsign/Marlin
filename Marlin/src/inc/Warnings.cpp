@@ -1005,3 +1005,10 @@
 #elif !RECOMMEND_REINIT_NOISY_LCD && ENABLED(REINIT_NOISY_LCD)
   #warning "REINIT_NOISY_LCD is probably not required with your LCD controller model."
 #endif
+
+/**
+ * FREEZE_FEATURE may override the KILL_PIN
+ */
+#if FREEZE_STOLE_KILL_PIN_WARNING
+  #warning "FREEZE_FEATURE uses KILL_PIN replacing the KILL button. Define a separate FREEZE_PIN if you don't want this behavior."
+#endif
