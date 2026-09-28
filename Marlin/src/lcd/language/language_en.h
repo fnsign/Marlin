@@ -474,6 +474,14 @@ namespace LanguageNarrow_en {
   LSTR MSG_DELTA_DIAG_ROD                 = _UxGT("Diag Rod");
   LSTR MSG_DELTA_HEIGHT                   = _UxGT("Height");
   LSTR MSG_DELTA_RADIUS                   = _UxGT("Radius");
+  LSTR MSG_KINEMATICS_SETTINGS            = _UxGT("Kinematics Settings");
+  LSTR MSG_DELTA_TOWER_ANGLE_TRIM_N       = _UxGT("@ Tower Trim");
+  LSTR MSG_DELTA_ROD_TRIM_A               = _UxGT("A Rod Trim");
+  LSTR MSG_DELTA_ROD_TRIM_B               = _UxGT("B Rod Trim");
+  LSTR MSG_DELTA_ROD_TRIM_C               = _UxGT("C Rod Trim");
+  LSTR MSG_SCARA_P_OFFSET                 = _UxGT("P Offset");
+  LSTR MSG_SCARA_T_OFFSET                 = _UxGT("T Offset");
+  LSTR MSG_SCARA_Z_OFFSET                 = _UxGT("Z Offset");
   LSTR MSG_3POINT_LEVELING                = _UxGT("3-Point Leveling");
   LSTR MSG_LINEAR_LEVELING                = _UxGT("Linear Leveling");
   LSTR MSG_BILINEAR_LEVELING              = _UxGT("Bilinear Leveling");
@@ -605,7 +613,7 @@ namespace LanguageNarrow_en {
   LSTR MSG_MESH_MAX_Y                     = _UxGT("Mesh Y Maximum");
   LSTR MSG_MESH_AMAX                      = _UxGT("Maximize Area");
   LSTR MSG_MESH_CENTER                    = _UxGT("Center Area");
-  LSTR MSG_MESH_CANCEL                    = _UxGT("Mesh cancelled");
+  LSTR MSG_MESH_CANCEL                    = _UxGT("Mesh canceled");
   LSTR MSG_M48_OUT_OF_BOUNDS              = _UxGT("Probe out of bounds");
   LSTR MSG_IDEX_DUPE_GAP                  = _UxGT("Duplicate X-Gap");
   LSTR MSG_UBL_TILT_MESH                  = _UxGT("Tilt Mesh");
@@ -838,6 +846,8 @@ namespace LanguageNarrow_en {
   LSTR MSG_FTM_TRAPEZOIDAL                = _UxGT("Trapezoidal");
   LSTR MSG_FTM_POLY5                      = _UxGT("5th Order");
   LSTR MSG_FTM_POLY6                      = _UxGT("6th Order");
+  LSTR MSG_FTM_CONSTANT_JOLT              = _UxGT("Constant Jolt");
+  LSTR MSG_FTM_JOLT                       = _UxGT("Jolt (m/s3)");
   LSTR MSG_FTM_TRAJECTORY                 = _UxGT("Trajectory: $");
   LSTR MSG_FILAMENT_EN                    = _UxGT("Filament *");
   LSTR MSG_SEGMENTS_PER_SECOND            = _UxGT("Segments/Sec");
