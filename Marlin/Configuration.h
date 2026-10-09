@@ -3374,17 +3374,12 @@
  *  - Download https://github.com/CrealityOfficial/Ender-3S1/archive/3S1_Plus_Screen.zip
  *  - Copy the downloaded DWIN_SET folder to the SD card.
  *
-<<<<<<< HEAD
- * CREALITY_TOUCH
- *  - CR-6 OEM touch screen. A DWIN display with touch.
-=======
  * CR10SPROV2 (T5UID1)
  *  - Stock Creality CR-10S Pro V2 screen. Uses the screen's factory DWIN_SET.
  *
  * SERMOON_D1 (T5L)
  *  - Download https://www.crealitycloud.com/downloads/firmware/sermoon-series/sermoon-d1
  *  - Copy the DWIN_SET folder from the firmware package to the SD card.
->>>>>>> bbe7c65573672d8efe49d7777e3ae221f38b6b55
  *
  * Flash display with DGUS Displays for Marlin:
  *  - Format the SD card to FAT32 with an allocation size of 4kb.
