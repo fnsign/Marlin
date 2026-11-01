@@ -32,6 +32,7 @@
  *   - digitalPinToAnalogIndex(pin)
  *   - getValidPinMode(pin)
  *   - isValidPin(pin)
+ *   - M43_NEVER_TOUCH(pin)
  *   - isAnalogPin(pin)
  *   - digitalRead_mod(pin)
  *   - pwm_status(pin)
@@ -48,11 +49,12 @@
 #define NUMBER_PINS_TOTAL NUM_DIGITAL_PINS
 #define MULTI_NAME_PAD 16 // space needed to be pretty if not first name assigned to a pin
 
-#define digitalRead_mod(P) extDigitalRead(P)
-#define printPinNameByIndex(x) do{ sprintf_P(buffer, PSTR("%-" STRINGIFY(MAX_NAME_LENGTH) "s"), pin_array[x].name); SERIAL_ECHO(buffer); }while(0)
-#define printPinNumber(P) do{ sprintf_P(buffer, PSTR("%02d"), P); SERIAL_ECHO(buffer); }while(0)
-#define getPinByIndex(x) pin_array[x].pin
-#define getPinIsDigitalByIndex(x) pin_array[x].is_digital
+#define printPinNumber printPinNumber
+FORCE_INLINE void printPinNumber(const pin_t pin) {
+  char buffer[10];
+  sprintf_P(buffer, PSTR("%02d"), pin);
+  SERIAL_ECHO(buffer);
+}
 
 /**
  * GPIO numbering is not contiguous. On the ESP32, GPIO 20, 24, and 28-31 don't
@@ -60,6 +62,12 @@
  * whichever ESP32 variant is being built.
  */
 #define isValidPin(P) (WITHIN(P, 0, pin_t(NUMBER_PINS_TOTAL - 1)) && GPIO_IS_VALID_GPIO(P))
+
+/**
+ * M43 must never drive the SPI flash pins (GPIO 6-11), which crashes the chip,
+ * or the UART0 pins (GPIO 1, 3) of the host serial port, which then stops working.
+ */
+#define M43_NEVER_TOUCH(Q) (WITHIN(Q, 6, 11) || (Q) == 1 || (Q) == 3)
 
 /**
  * ADC channels are not a contiguous range of GPIOs, so the channel and the pin
@@ -75,7 +83,12 @@ bool isAnalogPin(const pin_t pin) {
   return isValidPin(pin) && digitalPinToAnalogChannel(pin) >= 0;
 }
 
-#define printPinAnalog(P) do{ sprintf_P(buffer, PSTR(" (A%2d)  "), digitalPinToAnalogChannel(P)); SERIAL_ECHO(buffer); }while(0)
+#define printPinAnalog printPinAnalog
+FORCE_INLINE void printPinAnalog(const pin_t pin) {
+  char buffer[12];
+  sprintf_P(buffer, PSTR(" (A%2d)  "), digitalPinToAnalogChannel(pin));
+  SERIAL_ECHO(buffer);
+}
 
 /**
  * True if the pin is currently an output. fastio's IS_OUTPUT is hardcoded to
