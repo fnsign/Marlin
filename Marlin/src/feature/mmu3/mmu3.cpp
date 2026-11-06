@@ -277,9 +277,8 @@ namespace MMU3 {
    */
   void MMU3::checkFINDARunout() {
     if (!findaDetectsFilament()
-        //&& marlin.printJobOngoing()
+        && marlin.printingIsActive() // A job is running and not paused. Don't trigger while paused or from the pause itself.
         && parser.codenum != 600
-        && TERN1(HAS_LEVELING, planner.leveling_active)
         && xy_are_trusted()
         && e_active()
         #if ENABLED(MMU3_SPOOL_JOIN_CONSUMES_ALL_FILAMENT)
@@ -297,12 +296,12 @@ namespace MMU3 {
           runout.filament_ran_out = false; // trying to disable the purge more / continue message
           runout.enabled = false;
         #endif
-        queue.enqueue_now(F("M600A")); // Save print and run M600 A (automatic) command
+        queue.inject(F("M600A")); // Save print and run M600 A (automatic) command
       }
       else {
         marlin_stop_and_save_print_to_ram();
-        resume_print();
-        queue.enqueue_now(F("M600")); // Save print and run M600 command
+        resume_print(0, 0, 0, 0, 0, false); // Restore the state only. No load, purge, or "Purge More / Continue" prompt.
+        queue.inject(F("M600")); // Save print and run M600 command
       }
     }
   }
