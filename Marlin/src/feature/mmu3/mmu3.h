@@ -91,6 +91,7 @@
       ParkExtruder = 1, // The extruder was parked.
       Cooldown = 2,   // The extruder was allowed to cool.
       CooldownPending = 4,
+      Saved = 8,      // Print state saved (and the head parked, if it was allowed to move); don't repeat that until resumed.
     };
 
     // Source of operation error
@@ -267,6 +268,10 @@
       printerButtonOperation = Buttons::NoButton;
     }
 
+    #if ENABLED(MMU_MENUS)
+      void set_return_to_pause_after_eject(bool value) { return_to_pause_after_eject = value; }
+    #endif
+
     static uint8_t cutter_mode;   // mode 0:disabled | 1:enabled | 2:always (EXPERIMENTAL)
     static int cutter_mode_addr;  // EEPROM addr for cutter enabled setting
     static uint8_t stealth_mode;  // stealth mode
@@ -317,7 +322,7 @@
     StepStatus logicStep(bool reportErrors);
 
     void filament_ramming();
-    void execute_extruder_sequence(const E_Step *sequence, uint8_t steps);
+    void execute_extruder_sequence(const E_Step *sequence, uint8_t steps, const float first_step_adjustment=0);
     void execute_load_to_nozzle_sequence();
 
     // Reports an error into attached ExtUIs
@@ -411,6 +416,10 @@
     Buttons lastButton = Buttons::NoButton;
     uint16_t lastReadRegisterValue = 0;
     Buttons printerButtonOperation = Buttons::NoButton;
+
+    #if ENABLED(MMU_MENUS)
+      bool return_to_pause_after_eject = false;
+    #endif
 
     StepStatus logicStepLastStatus;
 

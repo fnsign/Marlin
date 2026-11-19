@@ -1237,6 +1237,10 @@
     #define FTM_POLY6_ACCELERATION_OVERSHOOT 1.875f // Max acceleration overshoot factor for POLY6 (1.25 to 1.875)
   #endif
 
+  #define FTM_MINIMUM_CRUISE_RATIO 0.5f         // Minimum fraction of distance to spend at cruising speed (0.0f disables)
+                                                // Reduces vibrations and extrusion artefacts in short blocks like small surface
+                                                // features and thin solid infills
+
   /**
    * FTM Constant-Jolt Trajectory (7-phase S-curve).
    * Jolt is the rate of change of acceleration, not related to Marlin's "classic jerk."
@@ -2393,6 +2397,17 @@
   //#define TFT_BTCANCEL_COLOR 0xF800 // Red
   //#define TFT_BTARROWS_COLOR 0xDEE6 // 11011 110111 00110 Yellow
   //#define TFT_BTOKMENU_COLOR 0x145F // 00010 100010 11111 Cyan
+#endif
+
+/**
+ * G-code Preview for TFT Color UI
+ * Show the thumbnail your slicer embeds in the G-code before printing a file.
+ * Set your slicer to write JPG or QOI thumbnails, or MKS TFT preview images.
+ */
+#if ALL(TFT_COLOR_UI, HAS_MEDIA)
+  //#define GCODE_PREVIEW_JPEG  // Enable JPEG thumbnail decoding
+  //#define GCODE_PREVIEW_QOI   // Enable QOI thumbnail decoding
+  //#define GCODE_PREVIEW_MKS   // Enable MKS TFT preview images (";simage:" / ";;gimage:")
 #endif
 
 /**
@@ -5036,6 +5051,14 @@
 // M265 - I2C Scanner
 //
 //#define I2C_SCANNER
+
+/**
+ * M7422 - Dump the Creality v4.2.x bootloader info region to serial.
+ * The stock bootloader on some STM32F103-based Creality boards (v4.2.2 and
+ * similar) reserves the last 2K of flash for the last-flashed filename
+ * tagged with a 0xAA55 magic header.
+ */
+//#define CREALITY_BOOTLOADER_INFO_DUMP
 
 // Enable Tests that will run at startup and produce a report
 //#define MARLIN_TEST_BUILD

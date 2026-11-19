@@ -373,9 +373,12 @@ namespace MMU3 {
     uint16_t mmuFwVersionBuild;
 
     uint8_t retryAttempts;
+    bool commandErrorLogged = false; // The current Command Error has been reported (report each error once)
     bool inAutoRetry;
 
     millis_t rejectedSinceMs = 0; //!< When the current run of rejected commands began (0 = none)
+    millis_t rejectedLoggedMs = 0; //!< When the current run of rejected commands was last logged
+    uint16_t rejectedCount = 0;    //!< How many times the current run of rejected commands was resent
 
     friend class MMU3;
   };

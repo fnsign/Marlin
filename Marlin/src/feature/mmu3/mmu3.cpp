@@ -43,6 +43,10 @@
 #include "../../inc/MarlinConfig.h"
 
 #include "../../lcd/marlinui.h"
+#if ENABLED(MMU_MENUS)
+  #include "../../lcd/menu/menu_mmu2.h" // for menu_mmu2_pause
+#endif
+
 #include "../../module/planner.h"
 #include "../../module/temperature.h"
 #include "../../module/motion.h"
@@ -276,11 +280,27 @@ namespace MMU3 {
    * multi color/material prints so this should be fine.
    */
   void MMU3::checkFINDARunout() {
+    const auto command_in_progress = (CommandInProgress)logic.CommandInProgress();
+    const auto progress = logic.Progress();
+
+    // A transient FINDA drop during unload/load transitions is not a real runout.
+    // The MMU intentionally moves filament away from the sensor while idler engage/disengage,
+    // during final unloads, and while reclaiming filament during load sequences, so skip the
+    // print runout check until the MMU is idle and stable.
     if (!findaDetectsFilament()
         && marlin.printingIsActive() // A job is running and not paused. Don't trigger while paused or from the pause itself.
         && parser.codenum != 600
         && xy_are_trusted()
         && e_active()
+        && get_current_tool() != (uint8_t)FILAMENT_UNKNOWN // Intentional unload leaves no active slot and should not trigger M600.
+        && command_in_progress == CommandInProgress::NoCommand
+        && progress != ProgressCode::UnloadingToFinda
+        && progress != ProgressCode::RetractingFromFinda
+        && progress != ProgressCode::UnloadingFilament
+        && progress != ProgressCode::LoadingFilament
+        && progress != ProgressCode::FeedingToFSensor
+        && progress != ProgressCode::DisengagingIdler
+        && progress != ProgressCode::EngagingIdler
         #if ENABLED(MMU3_SPOOL_JOIN_CONSUMES_ALL_FILAMENT)
           && runout.enabled // to prevent M600 to be triggered during M600 AUTO
           && !FILAMENT_PRESENT() // so the filament is totally consumed
@@ -329,6 +349,7 @@ namespace MMU3 {
 
   bool MMU3::retryIfPossible(const ErrorCode ec) {
     if (logic.RetryAttempts()) {
+      const ButtonOperations previous_response = GetButtonResponse();
       SetButtonResponse(ButtonOperations::Retry);
       // check, that Retry is actually allowed on that operation
       if (ButtonAvailable(ec) != Buttons::NoButton) {
@@ -338,6 +359,8 @@ namespace MMU3 {
         // --retryAttempts; // "used" one retry attempt
         return true;
       }
+      // Retry isn't offered for this error, so don't leave it selected
+      SetButtonResponse(previous_response);
     }
     logic.SetInAutoRetry(false);
     return false;
@@ -621,6 +644,14 @@ namespace MMU3 {
   bool MMU3::load_to_feeder(uint8_t slot) {
     if (!waitForMMUReady()) return false;
 
+    // The MMU refuses to load while its FINDA sees filament. Marlin would resend the command until it gives up
+    // with a generic communication error, so say what is wrong instead.
+    if (findaDetectsFilament()) {
+      SERIAL_ECHO_MSG("MMU3: Filament ", slot + 1, " not loaded. ", GET_TEXT_F(MSG_DESC_FILAMENT_ALREADY_LOADED));
+      LCD_ALERTMESSAGE(MSG_DESC_FILAMENT_ALREADY_LOADED);
+      return false;
+    }
+
     fullScreenMsgLoad(slot);
 
     // Scope for ReportingRAII
@@ -721,7 +752,8 @@ namespace MMU3 {
   }
 
   void MMU3::saveAndPark(bool move_axes) {
-    if (mmu_print_saved == SavedState::None) { // First occurrence. Save current position, park print head, disable nozzle heater.
+    if (!(mmu_print_saved & SavedState::Saved)) { // First occurrence. Save current position, park print head, disable nozzle heater.
+      mmu_print_saved |= SavedState::Saved;
       LogEchoEvent(F("Saving and parking"));
       Disable_E0();
       planner_synchronize();
@@ -793,6 +825,7 @@ namespace MMU3 {
   }
 
   void MMU3::resumeUnpark() {
+    mmu_print_saved &= ~(SavedState::Saved);
     if (mmu_print_saved & SavedState::ParkExtruder) {
       LogEchoEvent(F("Resuming XYZ"));
 
@@ -851,6 +884,14 @@ namespace MMU3 {
           // Do not send a button to the MMU unless the MMU is in error state
           button(buttons_to_uint8t(btn));
 
+        #if ENABLED(MMU_MENUS)
+          // After eject go back to the pause screen
+          if (lastErrorCode == ErrorCode::FILAMENT_EJECTED && return_to_pause_after_eject) { // #28813
+            ui.goto_screen(menu_mmu2_pause);
+            return_to_pause_after_eject = false;
+          }
+        #endif
+
         // A quick hack: for specific error codes move the E-motor every time.
         // Not sure if we can rely on the fsensor.
         // Just plan the move, let the MMU take over when it is ready
@@ -860,7 +901,7 @@ namespace MMU3 {
           default: break;
         }
         break;
-      case Buttons::TuneMMU:
+      case Buttons::TuneMMU: // TODO: May go unutilized, but it's here for now
         tune();
         break;
       case Buttons::Load:
@@ -1043,12 +1084,13 @@ namespace MMU3 {
     execute_extruder_sequence(ramming_sequence, sizeof(ramming_sequence) / sizeof(E_Step));
   }
 
-  void MMU3::execute_extruder_sequence(const E_Step *sequence, uint8_t steps) {
+  void MMU3::execute_extruder_sequence(const E_Step *sequence, uint8_t steps, const float first_step_adjustment/*=0*/) {
     planner_synchronize();
 
     const E_Step *step = sequence;
     for (uint8_t i = steps; i > 0; --i) {
-      extruder_move(pgm_read_float(&(step->extrude)), pgm_read_float(&(step->feedRate)));
+      const float extrude = pgm_read_float(&(step->extrude)) - (i == steps ? first_step_adjustment : 0);
+      extruder_move(extrude, pgm_read_float(&(step->feedRate)));
       step++;
     }
     planner_synchronize(); // it looks like it's better to sync the moves at the end - smoother move (if the sequence is not too long).
@@ -1058,9 +1100,8 @@ namespace MMU3 {
 
   void MMU3::execute_load_to_nozzle_sequence() {
     planner_synchronize();
-    // Compensate for configurable Extra Loading Distance
-    planner_set_current_position_E(planner_get_current_position_E() - (logic.ExtraLoadDistance() - MMU3_FILAMENT_SENSOR_E_POSITION));
-    execute_extruder_sequence(load_to_nozzle_sequence, sizeof(load_to_nozzle_sequence) / sizeof(load_to_nozzle_sequence[0]));
+    const float extra_load_offset = logic.ExtraLoadDistance() - MMU3_FILAMENT_SENSOR_E_POSITION;
+    execute_extruder_sequence(load_to_nozzle_sequence, sizeof(load_to_nozzle_sequence) / sizeof(load_to_nozzle_sequence[0]), extra_load_offset);
   }
 
   void MMU3::reportError(ErrorCode ec, ErrorSource res) {

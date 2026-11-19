@@ -444,7 +444,9 @@ namespace MMU3 {
       case ScopeState::CommandSent: {
         switch (rsp.paramCode) { // the response should be either accepted or rejected
           case ResponseMsgParamCodes::Accepted:
+            if (rejectedCount > 1) SERIAL_ECHO_MSG("MMU3: Command accepted after ", rejectedCount, " rejections");
             rejectedSinceMs = 0;
+            rejectedCount = 0;
             progressCode = ProgressCode::OK;
             errorCode = ErrorCode::RUNNING;
             scopeState = ScopeState::Wait;
@@ -471,9 +473,11 @@ namespace MMU3 {
         scopeState = ProcessRead16bitRegister(ScopeState::Wait);
         return Processing;
       case ScopeState::ButtonSent:
-        if (rsp.paramCode == ResponseMsgParamCodes::Accepted)
-          // Button was accepted, decrement the retry.
+        if (rsp.paramCode == ResponseMsgParamCodes::Accepted) {
+          // Button was accepted, decrement the retry. The error was answered, so report the next one.
           DecrementRetryAttempts();
+          commandErrorLogged = false;
+        }
         SendAndUpdateFilamentSensor();
         break;
       default:
@@ -553,9 +557,11 @@ namespace MMU3 {
         scopeState = ProcessRead16bitRegister(ScopeState::Ready);
         return scopeState == ScopeState::Ready ? Finished : Processing;
       case ScopeState::ButtonSent:
-        if (rsp.paramCode == ResponseMsgParamCodes::Accepted)
-          // Button was accepted, decrement the retry.
+        if (rsp.paramCode == ResponseMsgParamCodes::Accepted) {
+          // Button was accepted, decrement the retry. The error was answered, so report the next one.
           DecrementRetryAttempts();
+          commandErrorLogged = false;
+        }
         StartReading8bitRegisters();
         return Processing;
       case ScopeState::ReadRegisterSent:
@@ -843,6 +849,7 @@ namespace MMU3 {
         // we are ok, the state machine continues correctly
         break;
       case Finished: {
+        commandErrorLogged = false; // A finished command has no error to report any more
         // We are ok, switching to Idle if there is no potential next request planned.
         // But the trouble is we must report a finished command if the previous command has just been finished
         // i.e. only try to find some planned command if we just finished the Idle cycle
@@ -861,10 +868,16 @@ namespace MMU3 {
         // @@TODO wait until Q0 returns command in progress finished, then we can send this one
         // The MMU may still be busy, in which case a resend succeeds. It may also refuse the command for good
         // (e.g., Load while it believes filament is loaded), so only keep trying for a limited time.
-        LogError(PSTR("Command rejected"));
         {
           const millis_t now = _millis();
-          if (!rejectedSinceMs) rejectedSinceMs = now ?: 1;
+          if (!rejectedSinceMs) { rejectedSinceMs = now ?: 1; rejectedCount = 0; }
+          // The MMU is resent the command right away, so a busy MMU can refuse it hundreds of times.
+          // Log the first rejection, then one line per second with the count so far.
+          if (++rejectedCount == 1 || ELAPSED(now, rejectedLoggedMs + 1000)) {
+            rejectedLoggedMs = now;
+            LogError(PSTR("Command rejected"));
+            if (rejectedCount > 1) SERIAL_ECHO_MSG("MMU3: Command rejected ", rejectedCount, " times so far");
+          }
           if (ELAPSED(now, rejectedSinceMs + commandRejectedTimeout)) {
             LogError(PSTR("Command rejected too long"));
             // Raise a printer error so the user sees a screen, instead of silently resending forever
@@ -875,7 +888,11 @@ namespace MMU3 {
         }
         break;
       case CommandError:
-        LogError(PSTR("Command Error"));
+        // The MMU repeats the error on every status poll until it is answered. Report it once.
+        if (!commandErrorLogged) {
+          commandErrorLogged = true;
+          LogError(PSTR("Command Error"));
+        }
         // we should probably transfer into the Idle state and await further instructions from the upper layer
         // Idle state may solve the problem of keeping up the heart beat running
         break;
